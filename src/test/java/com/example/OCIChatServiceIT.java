@@ -67,12 +67,18 @@ public class OCIChatServiceIT {
     public void chatExample() throws Exception {
         // Create an OracleVectorStore to hold our embeddings.
         DataSource ds = testContainersDataSource();
-        OracleVectorStore vectorStore = new OracleVectorStore(ds, tableName, vectorDimensions);
+        OracleVectorStore vectorStore = new OracleVectorStore(
+                ds,
+                tableName,
+                vectorDimensions
+        );
         vectorStore.createTableIfNotExists();
 
-        // Create an OCI authentication provider using the default local config file.
+        // Create an OCI authentication provider using the default local
+        // config file.
         var authProvider = new ConfigFileAuthenticationDetailsProvider(
-                Paths.get(System.getProperty("user.home"), ".oci", "config").toString(),
+                Paths.get(System.getProperty("user.home"), ".oci", "config")
+                        .toString(),
                 "DEFAULT"
         );
         // Create an object storage document loader to load texts
@@ -80,11 +86,26 @@ public class OCIChatServiceIT {
                 ObjectStorageClient.builder().build(authProvider),
                 namespace
         );
+        OnDemandServingMode embeddingServingMode = OnDemandServingMode.builder()
+                .modelId(embeddingModelId)
+                .build();
         // Create an OCI Embedding model for text embedding.
         OCIEmbeddingModel embeddingModel = OCIEmbeddingModel.builder()
-                .model(embeddingModelId)
-                .aiClient(GenerativeAiInferenceClient.builder().build(authProvider))
+                .servingMode(embeddingServingMode)
+                .aiClient(GenerativeAiInferenceClient.builder()
+                        .build(authProvider))
                 .compartmentId(compartmentId)
+                .build();
+
+        // Create a chat service for an On-Demand OCI GenAI chat model.
+        OnDemandServingMode chatServingMode = OnDemandServingMode.builder()
+                .modelId(chatModelId)
+                .build();
+        OCIChatService chatService = OCIChatService.builder()
+                .authProvider(authProvider)
+                .servingMode(chatServingMode)
+                .inferenceRequestType(COHERE)
+                .compartment(compartmentId)
                 .build();
 
         // Create a workflow that will load, split, embed, and store documents.
@@ -97,23 +118,14 @@ public class OCIChatServiceIT {
                 .bucketName(bucketName)
                 .objectPrefix(objectPrefix)
                 .build();
-        // Run the embedding workflow to store all our document embeddings in the database.
+        // Run the embedding workflow to store all our document embeddings
+        // in the database.
         embeddingWorkflow.run();
 
-        // Create a chat service for an On-Demand OCI GenAI chat model.
-        OnDemandServingMode servingMode = OnDemandServingMode.builder()
-                .modelId(chatModelId)
-                .build();
-        OCIChatService chatService = OCIChatService.builder()
-                .authProvider(authProvider)
-                .servingMode(servingMode)
-                .inferenceRequestType(COHERE)
-                .compartment(compartmentId)
-                .build();
-
         String userQuestion = "What is Germany famous for?";
-        // Create a workflow to embed the user question, query the vector database for related content,
-        // and then call the chat service with the content-enriched prompt.
+        // Create a workflow to embed the user question, query the vector
+        // database for related content, and then call the chat service
+        // with the content-enriched prompt.
         ChatWorkflow chatWorkflow = ChatWorkflow.builder()
                 .vectorStore(vectorStore)
                 .chatService(chatService)
@@ -124,7 +136,8 @@ public class OCIChatServiceIT {
                 .build();
         // Call the chat workflow
         String response = chatWorkflow.call();
-        // The document loaded contains information about Germany's Oktoberfest tradition.
+        // The document loaded contains information about Germany's Oktoberfest
+        // tradition.
         assertThat(response).containsIgnoringCase("oktoberfest");
         System.out.println(response);
     }

@@ -11,9 +11,21 @@ public class EmbeddingWorkflow implements Runnable {
     private final OracleVectorStore vectorStore;
     private final OCIEmbeddingModel embeddingModel;
     private final OCIDocumentLoader documentLoader;
+    /**
+     * Object Storage namespace.
+     */
     private final String namespace;
+    /**
+     * Object Storage bucket name.
+     */
     private final String bucketName;
+    /**
+     * Object Storage prefix or object name to load documents from.
+     */
     private final String objectPrefix;
+    /**
+     * The Splitter used to break documents into chunks.
+     */
     private final Splitter<String> splitter;
 
     @Override

@@ -1,2 +1,3 @@
 # OCI-Chat-Service
-Chat service using OCI GenAI
+
+Java 21 implementation of a RAG-powered chat workflow using OCI GenAI, OCI Object Storage, and Oracle Database.

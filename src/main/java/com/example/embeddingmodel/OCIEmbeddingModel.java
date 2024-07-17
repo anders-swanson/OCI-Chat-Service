@@ -26,10 +26,9 @@ public class OCIEmbeddingModel {
      */
     private static final int EMBEDDING_BATCH_SIZE = 96;
 
-    private final String model;
+    private final ServingMode servingMode;
     protected final String compartmentId;
     private final GenerativeAiInference aiClient;
-    private final ServingMode servingMode;
     /**
      * OCI GenAi accepts a maximum of 512 tokens per embedding. If the number of tokens exceeds this amount,
      * and the embedding truncation value is set to None (default), an error will be received.
@@ -40,12 +39,11 @@ public class OCIEmbeddingModel {
     private final EmbedTextDetails.Truncate truncate;
 
     @Builder
-    public OCIEmbeddingModel(ServingModeType servingModeType, String model, String compartmentId, GenerativeAiInference aiClient, EmbedTextDetails.Truncate truncate) {
-        this.model = model;
+    public OCIEmbeddingModel(ServingMode servingMode, String compartmentId, GenerativeAiInference aiClient, EmbedTextDetails.Truncate truncate) {
+        this.servingMode = servingMode;
         this.compartmentId = compartmentId;
         this.aiClient = aiClient;
         this.truncate = truncate == null ? EmbedTextDetails.Truncate.None : truncate;
-        servingMode = servingMode(servingModeType == null ? ServingModeType.ON_DEMAND : servingModeType);
     }
 
     /**
@@ -83,7 +81,7 @@ public class OCIEmbeddingModel {
                 .servingMode(servingMode)
                 .compartmentId(compartmentId)
                 .inputs(batch)
-                .truncate(getTruncateOrDefault())
+                .truncate(truncate)
                 .build();
         return EmbedTextRequest.builder().embedTextDetails(embedTextDetails).build();
     }
@@ -100,19 +98,5 @@ public class OCIEmbeddingModel {
                     return new Embedding(vector, batch.get(i));
                 })
                 .collect(Collectors.toList());
-    }
-
-    private EmbedTextDetails.Truncate getTruncateOrDefault() {
-        if (truncate == null) {
-            return EmbedTextDetails.Truncate.None;
-        }
-        return truncate;
-    }
-
-    private ServingMode servingMode(ServingModeType servingModeType) {
-        return switch (servingModeType) {
-            case DEDICATED -> DedicatedServingMode.builder().endpointId(model).build();
-            case ON_DEMAND -> OnDemandServingMode.builder().modelId(model).build();
-        };
     }
 }

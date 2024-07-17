@@ -50,7 +50,6 @@ public class OCIChatService {
                           ServingMode servingMode,
                           String compartment,
                           String preambleOverride,
-                          String promptTemplate,
                           Double temperature,
                           Double frequencyPenalty,
                           Integer maxTokens,
@@ -65,11 +64,20 @@ public class OCIChatService {
         this.preambleOverride = preambleOverride;
 
         this.temperature = Objects.requireNonNullElse(temperature, 1.0);
-        this.frequencyPenalty = Objects.requireNonNullElse(frequencyPenalty, 0.0);
+        this.frequencyPenalty = Objects.requireNonNullElse(
+                frequencyPenalty,
+                0.0
+        );
         this.maxTokens = Objects.requireNonNullElse(maxTokens, 600);
-        this.presencePenalty = Objects.requireNonNullElse(presencePenalty, 0.0);
+        this.presencePenalty = Objects.requireNonNullElse(
+                presencePenalty,
+                0.0
+        );
         this.topP = Objects.requireNonNullElse(topP, 0.75);
-        this.inferenceRequestType = Objects.requireNonNullElse(inferenceRequestType, InferenceRequestType.COHERE);
+        this.inferenceRequestType = Objects.requireNonNullElse(
+                inferenceRequestType,
+                InferenceRequestType.COHERE
+        );
         this.topK = Objects.requireNonNullElseGet(topK, () -> {
             if (this.inferenceRequestType == InferenceRequestType.COHERE) {
                 return 0;
@@ -88,7 +96,6 @@ public class OCIChatService {
         InferenceRequestType(String type) {
             this.type = type;
         }
-
     }
 
     /**
@@ -111,27 +118,7 @@ public class OCIChatService {
     }
 
     /**
-     * Extract text from an OCI GenAI ChatResponse.
-     * @param chatResponse The response to extract text from.
-     * @return The chat response text.
-     */
-    private String extractText(ChatResponse chatResponse) {
-        BaseChatResponse baseChatResponse = chatResponse.getChatResult().getChatResponse();
-        if (baseChatResponse instanceof CohereChatResponse) {
-            return ((CohereChatResponse) baseChatResponse).getText();
-        } else if (baseChatResponse instanceof GenericChatResponse) {
-            List<ChatChoice> choices =  ((GenericChatResponse) baseChatResponse).getChoices();
-            List<ChatContent> contents = choices.get(choices.size() - 1).getMessage().getContent();
-            ChatContent content = contents.get(contents.size() - 1);
-            if (content instanceof TextContent) {
-                return ((TextContent) content).getText();
-            }
-        }
-        throw new IllegalStateException("Unexpected chat response type: " + baseChatResponse.getClass().getName());
-    }
-
-    /**
-     * Create a ChatRequest from a text prompt. Supports COHERE or LLAMA inference types.
+     * Create a ChatRequest from a text prompt. Supports COHERE or LLAMA inference.
      * @param prompt To create a ChatRequest from.
      * @return A COHERE or LLAMA ChatRequest.
      */
@@ -150,9 +137,11 @@ public class OCIChatService {
                         .preambleOverride(preambleOverride)
                         .build();
             case LLAMA:
-                List<Message> messages = genericChatMessages == null ? new ArrayList<>() : genericChatMessages.stream()
-                        .map(ChatChoice::getMessage)
-                        .collect(Collectors.toList());
+                List<Message> messages = genericChatMessages == null ?
+                        new ArrayList<>() :
+                        genericChatMessages.stream()
+                            .map(ChatChoice::getMessage)
+                            .collect(Collectors.toList());
                 ChatContent content = TextContent.builder()
                         .text(prompt)
                         .build();
@@ -173,22 +162,56 @@ public class OCIChatService {
                         .topK(topK)
                         .build();
         }
-        throw new IllegalArgumentException("Unsupported inference request type: " + inferenceRequestType);
-    }
 
+        throw new IllegalArgumentException(String.format(
+                "Unknown request type %s",
+                inferenceRequestType
+        ));
+    }
 
     /**
      * Save the current chat history to memory.
      * @param chatResponse The latest chat response.
      */
     private void saveChatHistory(ChatResponse chatResponse) {
-        BaseChatResponse baseChatResponse = chatResponse.getChatResult().getChatResponse();
-        if (baseChatResponse instanceof CohereChatResponse) {
-            cohereChatMessages = ((CohereChatResponse) baseChatResponse).getChatHistory();
-        } else if (baseChatResponse instanceof GenericChatResponse) {
-            genericChatMessages = ((GenericChatResponse) baseChatResponse).getChoices();
+        BaseChatResponse bcr = chatResponse.getChatResult()
+                .getChatResponse();
+        if (bcr instanceof CohereChatResponse resp) {
+            cohereChatMessages = resp.getChatHistory();
+        } else if (bcr instanceof GenericChatResponse resp) {
+            genericChatMessages = resp.getChoices();
         } else {
-            throw new IllegalStateException("Unexpected chat response type: " + baseChatResponse.getClass().getName());
+            throw new IllegalStateException(String.format(
+                    "Unexpected chat response type: %s",
+                    bcr.getClass().getName()
+            ));
         }
+    }
+
+    /**
+     * Extract text from an OCI GenAI ChatResponse.
+     * @param chatResponse The response to extract text from.
+     * @return The chat response text.
+     */
+    private String extractText(ChatResponse chatResponse) {
+        BaseChatResponse bcr = chatResponse
+                .getChatResult()
+                .getChatResponse();
+        if (bcr instanceof CohereChatResponse resp) {
+            return resp.getText();
+        } else if (bcr instanceof GenericChatResponse resp) {
+            List<ChatChoice> choices =  resp.getChoices();
+            List<ChatContent> contents = choices.get(choices.size() - 1)
+                    .getMessage()
+                    .getContent();
+            ChatContent content = contents.get(contents.size() - 1);
+            if (content instanceof TextContent) {
+                return ((TextContent) content).getText();
+            }
+        }
+        throw new IllegalStateException(String.format(
+                "Unexpected chat response type: %s",
+                bcr.getClass().getName()
+        ));
     }
 }

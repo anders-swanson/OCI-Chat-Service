@@ -17,13 +17,26 @@ public class ChatWorkflow implements Callable<String> {
     private final OCIChatService chatService;
     private final OCIEmbeddingModel embeddingModel;
 
+    /**
+     * The raw user question.
+     */
     private final String userQuestion;
+
+    /**
+     * The prompt template we'll be using for RAG.
+     */
     private final String promptTemplate;
+
+    /**
+     * The minimum similarity score allowed for result filtering,
+     * where 1.0 is the most restrictive,
+     * and 0.0 is the most permissive.
+     */
     private final double minScore;
 
     @Override
     public String call() throws Exception {
-        // Embed the user question.
+        // Embed the user question to a vector embedding.
         Embedding embedding = embeddingModel.embed(userQuestion);
         // Create a search request using the user question's embedding.
         SearchRequest searchRequest = SearchRequest.builder()
@@ -32,7 +45,7 @@ public class ChatWorkflow implements Callable<String> {
                 .maxResults(5)
                 .minScore(minScore)
                 .build();
-        // Search the vector store for any content related to the user question.
+        // Query the vector store for content related to the user question.
         List<Embedding> results = vectorStore.search(searchRequest);
         // If related content was found, add it to the chat service prompt.
         String context = results.isEmpty() ?
