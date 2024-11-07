@@ -58,7 +58,7 @@ public class OCIChatServiceIT {
     // Pre-pull this image to avoid testcontainers image pull timeouts:
     // docker pull gvenzl/oracle-free:23.4-slim-faststart
     @Container
-    private static final OracleContainer oracleContainer = new OracleContainer("gvenzl/oracle-free:23.4-slim-faststart")
+    private static final OracleContainer oracleContainer = new OracleContainer("gvenzl/oracle-free:23.5-slim-faststart")
             .withUsername("testuser")
             .withPassword(("testpwd"));
 
